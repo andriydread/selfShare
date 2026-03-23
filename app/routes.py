@@ -13,6 +13,7 @@ from .models import File
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
 
+# JWT TOKEN check decorator
 def require_jwt(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -40,6 +41,7 @@ def require_jwt(f):
     return decorated
 
 
+# Login route
 @api_bp.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
@@ -54,6 +56,7 @@ def login():
         return jsonify({"error": "Unauthorized"}), 401
 
 
+# List all files on server
 @api_bp.route("/files", methods=["GET"])
 @require_jwt
 def view_files():
@@ -71,6 +74,7 @@ def view_files():
     return jsonify(list_of_files), 200
 
 
+# Upload file to server
 @api_bp.route("/files", methods=["POST"])
 @require_jwt
 def upload_file():
@@ -111,6 +115,7 @@ def upload_file():
         return jsonify({"error": "No file provided"}), 400
 
 
+# Download file from server
 @api_bp.route("/files/<file_id>", methods=["GET"])
 def download_file(file_id):
     file_record = db.session.get(File, file_id)
@@ -131,3 +136,21 @@ def download_file(file_id):
         f"attachment; filename={file_record.original_filename}"
     )
     return response
+
+
+# Delete file from server
+@api_bp.route("/files/<file_id>", methods=["DELETE"])
+@require_jwt
+def delete_file(file_id):
+    file_record = db.session.get(File, file_id)
+    if not file_record:
+        return jsonify({"error": "File not found"}), 404
+
+    try:
+        os.remove(file_record.storage_path)
+    except FileNotFoundError:
+        pass
+
+    db.session.delete(file_record)
+
+    return jsonify({"success": "File was deleted"}), 200
