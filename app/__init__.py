@@ -13,10 +13,12 @@ def create_app():
     app = Flask(__name__, static_folder="../frontend", static_url_path="/")
 
     app.config["UPLOAD_FOLDER"] = os.path.join(os.getcwd(), "uploads")
-    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 
+    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+
     db.init_app(app)
+
     with app.app_context():
         from . import models  # noqa
 
@@ -25,4 +27,5 @@ def create_app():
     from .routes import api_bp
 
     app.register_blueprint(api_bp)
+
     return app

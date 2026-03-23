@@ -63,25 +63,38 @@ function renderTable(files) {
   }
 
   files.forEach((file) => {
-    // If expires_at is null, say "Indefinite", otherwise format the date
-    const expiresText = file.expires_at
-      ? new Date(file.expires_at).toLocaleString()
-      : "Indefinite";
+    // 1. Format Date to dd/mm/yyyy HH:MM (24-hour)
+    let expiresText = "Indefinite";
+    if (file.expires_at) {
+      const d = new Date(file.expires_at);
+      const day = String(d.getDate()).padStart(2, "0");
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const year = d.getFullYear();
+      const hours = String(d.getHours()).padStart(2, "0");
+      const minutes = String(d.getMinutes()).padStart(2, "0");
+      expiresText = `${day}/${month}/${year} ${hours}:${minutes}`;
+    }
 
-    // Build the row string
+    // 2. Add Description (or empty string if none)
+    const descText = file.description
+      ? file.description
+      : '<em class="text-gray-600">None</em>';
+
+    // 3. Add Edit and Delete buttons
     const row = `
                     <tr class="border-b border-gray-700 hover:bg-gray-750">
-                        <td class="p-3 text-blue-300">
-                            <a href="/api/v1/files/${file.id}" target="_blank" class="hover:underline">${file.original_filename}</a>
+                        <td class="p-3">
+                            <a href="/api/v1/files/${file.id}" target="_blank" class="text-blue-300 hover:underline font-bold">${file.original_filename}</a>
+                            <div class="text-sm text-gray-400 mt-1">${descText}</div>
                         </td>
                         <td class="p-3 text-gray-300">${expiresText}</td>
-                        <td class="p-3 text-gray-400">${file.download_count}</td>
-                        <td class="p-3 text-right">
+                        <td class="p-3 text-right space-x-3">
+                            <button onclick="editFile('${file.id}')" class="text-yellow-400 hover:text-yellow-300 font-bold transition">Edit</button>
                             <button onclick="deleteFile('${file.id}')" class="text-red-400 hover:text-red-300 font-bold transition">Delete</button>
                         </td>
                     </tr>
                 `;
-    tbody.innerHTML += row; // Inject the row into the table
+    tbody.innerHTML += row;
   });
 }
 
