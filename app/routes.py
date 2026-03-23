@@ -54,6 +54,23 @@ def login():
         return jsonify({"error": "Unauthorized"}), 401
 
 
+@api_bp.route("/files", methods=["GET"])
+@require_jwt
+def view_files():
+    all_files = File.query.all()
+
+    list_of_files = [
+        {
+            "id": x.id,
+            "original_filename": x.original_filename,
+            "download_count": x.download_count,
+            "expires_at": x.expires_at.isoformat(),
+        }
+        for x in all_files
+    ]
+    return jsonify(list_of_files), 200
+
+
 @api_bp.route("/files", methods=["POST"])
 @require_jwt
 def upload_file():
