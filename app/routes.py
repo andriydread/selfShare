@@ -67,7 +67,7 @@ def view_files():
             "id": x.id,
             "original_filename": x.original_filename,
             "download_count": x.download_count,
-            "expires_at": x.expires_at.isoformat(),
+            "expires_at": x.expires_at.isoformat() if x.expires_at else None,
         }
         for x in all_files
     ]
@@ -152,5 +152,6 @@ def delete_file(file_id):
         pass
 
     db.session.delete(file_record)
+    db.session.commit()
 
     return jsonify({"success": "File was deleted"}), 200
