@@ -84,7 +84,17 @@ def upload_file():
         file_id = str(uuid.uuid4())
         save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], file_id)
         uploaded_file.save(save_path)
-        expires = datetime.now(timezone.utc) + timedelta(hours=24)
+
+        hours = request.form.get("expires_in_hours")
+        expires = None
+        if hours:
+            try:
+                hours = int(hours)
+                expires = datetime.now(timezone.utc) + timedelta(hours=hours)
+            except ValueError:
+                return jsonify(
+                    {"error": "expires_in_hours must be a valid integer"}
+                ), 400
 
         new_file = File(
             id=file_id,

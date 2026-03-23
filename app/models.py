@@ -17,6 +17,6 @@ class File(db.Model):
         db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
 
-    expires_at = db.Column(db.DateTime, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=True)
 
     download_count = db.Column(db.Integer, default=0)
