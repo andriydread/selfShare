@@ -1,4 +1,4 @@
-// Auto-Login Check
+// Check if token is present and login
 window.onload = () => {
   const token = localStorage.getItem("dropzone_jwt");
   if (token) {
@@ -8,6 +8,7 @@ window.onload = () => {
   }
 };
 
+// Func to login admin
 async function handleLogin() {
   const password = document.getElementById("password-input").value;
   const response = await fetch("/api/v1/login", {
@@ -28,11 +29,13 @@ async function handleLogin() {
   }
 }
 
+// Func to logout duh
 function logout() {
   localStorage.removeItem("dropzone_jwt");
   window.location.reload();
 }
 
+// Func to get files from API
 async function fetchFiles() {
   const token = localStorage.getItem("dropzone_jwt");
   const response = await fetch("/api/v1/files", {
@@ -47,6 +50,7 @@ async function fetchFiles() {
   }
 }
 
+// FUNC to render files table
 function renderTable(files) {
   const tbody = document.getElementById("files-table-body");
   tbody.innerHTML = "";
@@ -84,6 +88,7 @@ function renderTable(files) {
                 <td class="p-3 text-gray-300">${expiresText}</td>
                 <td class="p-3 text-right space-x-3">
                     <button onclick="editFile('${file.id}')" class="text-yellow-400 hover:text-yellow-300 font-bold transition">Edit</button>
+                    <button onclick="copyLink('${file.id}')" class="text-green-400 hover:text-green-300 font-bold transition">Copy Link</button>
                     <button onclick="deleteFile('${file.id}')" class="text-red-400 hover:text-red-300 font-bold transition">Delete</button>
                 </td>
             </tr>
@@ -92,6 +97,7 @@ function renderTable(files) {
   });
 }
 
+// FUNC to upload file
 async function handleUpload(event) {
   event.preventDefault();
   const fileInput = document.getElementById("file-input").files[0];
@@ -103,7 +109,6 @@ async function handleUpload(event) {
   formData.append("file", fileInput);
   if (descInput) formData.append("description", descInput);
 
-  // JS converts the calendar date to a UTC ISO string for Python
   if (expiresInput)
     formData.append("expires_at", new Date(expiresInput).toISOString());
 
@@ -122,6 +127,7 @@ async function handleUpload(event) {
   }
 }
 
+// FUNC to delete file
 async function deleteFile(fileId) {
   if (!confirm("Are you sure you want to delete this file?")) return;
   const token = localStorage.getItem("dropzone_jwt");
@@ -134,34 +140,27 @@ async function deleteFile(fileId) {
   else alert("Failed to delete file.");
 }
 
-// Simple JS popup to handle the Edit PATCH route
+// FUNC to edit file
 async function editFile(fileId) {
-  // 1. Ask for new description (Optional)
   const newDesc = prompt(
     "Enter new description (Leave blank to keep current):",
   );
-  if (newDesc === null) return; // User clicked 'Cancel'
+  if (newDesc === null) return;
 
-  // 2. Ask for new expiration date (Optional)
   const newExpires = prompt(
     "Enter new expiration date (Format: YYYY-MM-DD HH:MM). Leave blank to keep current, or type '0' to make indefinite:",
   );
-  if (newExpires === null) return; // User clicked 'Cancel'
+  if (newExpires === null) return;
 
-  // 3. Build the JSON payload dynamically
   const payload = {};
 
-  // Only add description if they typed something new
   if (newDesc.trim() !== "") {
     payload.description = newDesc;
   }
-
-  // Handle the Expiration Date logic
   if (newExpires.trim() !== "") {
     if (newExpires.trim() === "0") {
-      payload.expires_at = null; // Tell Python to remove the expiration
+      payload.expires_at = null;
     } else {
-      // Convert their typed string into a proper ISO UTC string for Python
       try {
         const localDate = new Date(newExpires);
         if (isNaN(localDate.getTime())) throw new Error("Invalid date");
@@ -173,12 +172,10 @@ async function editFile(fileId) {
     }
   }
 
-  // 4. If they didn't change anything, don't bother the server
   if (Object.keys(payload).length === 0) {
     return;
   }
 
-  // 5. Send the PATCH request to Python
   const token = localStorage.getItem("dropzone_jwt");
   try {
     const response = await fetch(`/api/v1/files/${fileId}`, {
@@ -191,12 +188,24 @@ async function editFile(fileId) {
     });
 
     if (response.ok) {
-      fetchFiles(); // Refresh the table to show the new data!
+      fetchFiles();
     } else {
       const err = await response.json();
       alert("Edit failed: " + JSON.stringify(err));
     }
   } catch (error) {
     console.error("Network error during edit:", error);
+  }
+}
+
+// FUNC to copy link for download
+async function copyLink(fileId) {
+  // Dynamically build the full URL based on where the app is running (localhost or a real domain)
+  const link = `${window.location.origin}/api/v1/files/${fileId}`;
+  try {
+    await navigator.clipboard.writeText(link);
+    alert("Public download link copied to clipboard!");
+  } catch (err) {
+    alert("Failed to copy link. Your browser might block clipboard access.");
   }
 }
