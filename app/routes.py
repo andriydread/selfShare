@@ -27,7 +27,7 @@ def require_jwt(f):
 
         try:
             # Fallback prevents 500 crashes if .env is missing
-            secret = os.environ.get("JWT_SECRET", "super_secret_fallback")
+            secret = os.environ.get("JWT_SECRET")
             jwt.decode(token, secret, algorithms=["HS256"])
         except jwt.ExpiredSignatureError:
             return jsonify({"error": "Token has expired"}), 401
@@ -61,7 +61,6 @@ def view_files():
         {
             "id": x.id,
             "original_filename": x.original_filename,
-            "download_count": x.download_count,
             "expires_at": x.expires_at.isoformat() if x.expires_at else None,
             "description": x.description,
         }
@@ -85,18 +84,21 @@ def upload_file():
     save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], file_id)
     uploaded_file.save(save_path)
 
-    hours_str = request.form.get("expires_in_hours")
+    # Inside upload_file(), replace the old hours logic with this:
+    expires_str = request.form.get("expires_at")
     expires = None
 
-    if hours_str:
+    if expires_str:
         try:
-            hours = int(hours_str)
-            if hours <= 0:
-                return jsonify({"error": "Hours must be greater than 0"}), 400
-            expires = datetime.now(timezone.utc) + timedelta(hours=hours)
+            # Convert the string "2024-10-31T15:30:00.000Z" into a Python datetime
+            # .replace("Z", "+00:00") is a standard Python trick to parse JS UTC strings
+            expires = datetime.fromisoformat(expires_str.replace("Z", "+00:00"))
+
+            # Prevent users from picking a date in the past!
+            if expires < datetime.now(timezone.utc):
+                return jsonify({"error": "Expiration date must be in the future"}), 400
         except ValueError:
-            # Catch ValueError because HTTP form data is always a string
-            return jsonify({"error": "expires_in_hours must be a valid integer"}), 400
+            return jsonify({"error": "Invalid date format"}), 400
 
     new_file = File(
         id=file_id,
@@ -144,14 +146,21 @@ def edit_file(file_id):
     if "description" in data:
         file_record.description = data["description"]
 
-    if "expires_in_hours" in data:
-        hours = data["expires_in_hours"]
-        if isinstance(hours, int) and hours > 0:
-            file_record.expires_at = datetime.now(timezone.utc) + timedelta(hours=hours)
-        elif hours is None:
-            file_record.expires_at = None
+    if "expires_at" in data:
+        expires_str = data["expires_at"]
+        if expires_str is None:
+            file_record.expires_at = None  # Make it indefinite
         else:
-            return jsonify({"error": "Invalid hours"}), 400
+            try:
+                # Convert the ISO string from JS into a timezone-aware Python datetime
+                expires = datetime.fromisoformat(expires_str.replace("Z", "+00:00"))
+                if expires < datetime.now(timezone.utc):
+                    return jsonify(
+                        {"error": "Expiration date must be in the future"}
+                    ), 400
+                file_record.expires_at = expires
+            except ValueError:
+                return jsonify({"error": "Invalid date format"}), 400
 
     db.session.commit()
     return jsonify({"success": "File updated successfully"}), 200
