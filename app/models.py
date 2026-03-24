@@ -1,5 +1,4 @@
 import uuid
-from datetime import datetime, timezone
 
 from . import db
 
@@ -11,13 +10,3 @@ class File(db.Model):
     original_filename = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=True)
     storage_path = db.Column(db.String(255), nullable=False)
-    uploaded_at = db.Column(
-        db.DateTime(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-    )
-
-    expires_at = db.Column(
-        db.DateTime(timezone=True),
-        nullable=True,
-    )

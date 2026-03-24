@@ -65,7 +65,6 @@ def view_files():
         {
             "id": x.id,
             "original_filename": x.original_filename,
-            "expires_at": x.expires_at.isoformat() if x.expires_at else None,
             "description": x.description,
         }
         for x in all_files
@@ -87,23 +86,11 @@ def upload_file():
     save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], file_id)
     uploaded_file.save(save_path)
 
-    expires_str = request.form.get("expires_at")
-    expires = None
-
-    if expires_str:
-        try:
-            expires = datetime.fromisoformat(expires_str.replace("Z", "+00:00"))
-            if expires < datetime.now(timezone.utc):
-                return jsonify({"error": "Expiration date must be in the future"}), 400
-        except ValueError:
-            return jsonify({"error": "Invalid date format"}), 400
-
     new_file = File(
         id=file_id,
         description=request.form.get("description"),
         original_filename=secure_filename(uploaded_file.filename),
         storage_path=save_path,
-        expires_at=expires,
     )
     db.session.add(new_file)
     db.session.commit()
@@ -142,21 +129,6 @@ def edit_file(file_id):
     data = request.get_json()
     if "description" in data:
         file_record.description = data["description"]
-
-    if "expires_at" in data:
-        expires_str = data["expires_at"]
-        if expires_str is None:
-            file_record.expires_at = None
-        else:
-            try:
-                expires = datetime.fromisoformat(expires_str.replace("Z", "+00:00"))
-                if expires < datetime.now(timezone.utc):
-                    return jsonify(
-                        {"error": "Expiration date must be in the future"}
-                    ), 400
-                file_record.expires_at = expires
-            except ValueError:
-                return jsonify({"error": "Invalid date format"}), 400
 
     db.session.commit()
     return jsonify({"success": "File updated successfully"}), 200

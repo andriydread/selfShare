@@ -57,24 +57,11 @@ function renderTable(files) {
 
   if (files.length === 0) {
     tbody.innerHTML =
-      '<tr><td colspan="3" class="p-3 text-center text-gray-500">No active files.</td></tr>';
+      '<tr><td colspan="2" class="p-3 text-center text-gray-500">No active files.</td></tr>';
     return;
   }
 
   files.forEach((file) => {
-    let expiresText = '<span class="text-green-400">Indefinite</span>';
-    if (file.expires_at) {
-      const d = new Date(file.expires_at);
-      expiresText = d.toLocaleString("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      });
-    }
-
     const descText = file.description
       ? file.description
       : '<em class="text-gray-600">No description</em>';
@@ -85,7 +72,6 @@ function renderTable(files) {
                     <a href="/api/v1/files/${file.id}" target="_blank" class="text-blue-300 hover:underline font-bold">${file.original_filename}</a>
                     <div class="text-sm text-gray-400 mt-1">${descText}</div>
                 </td>
-                <td class="p-3 text-gray-300">${expiresText}</td>
                 <td class="p-3 text-right space-x-3">
                     <button onclick="editFile('${file.id}')" class="text-yellow-400 hover:text-yellow-300 font-bold transition">Edit</button>
                     <button onclick="copyLink('${file.id}')" class="text-green-400 hover:text-green-300 font-bold transition">Copy Link</button>
@@ -97,20 +83,55 @@ function renderTable(files) {
   });
 }
 
+// FUNC to edit file
+async function editFile(fileId) {
+  const newDesc = prompt(
+    "Enter new description (Leave blank to keep current):",
+  );
+  if (newDesc === null) return;
+
+  const payload = {};
+
+  if (newDesc.trim() !== "") {
+    payload.description = newDesc;
+  }
+
+  if (Object.keys(payload).length === 0) {
+    return;
+  }
+
+  const token = localStorage.getItem("dropzone_jwt");
+  try {
+    const response = await fetch(`/api/v1/files/${fileId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok) {
+      fetchFiles();
+    } else {
+      const err = await response.json();
+      alert("Edit failed: " + JSON.stringify(err));
+    }
+  } catch (error) {
+    console.error("Network error during edit:", error);
+  }
+}
+
 // FUNC to upload file
 async function handleUpload(event) {
   event.preventDefault();
   const fileInput = document.getElementById("file-input").files[0];
   const descInput = document.getElementById("desc-input").value;
-  const expiresInput = document.getElementById("expires-input").value;
   const token = localStorage.getItem("dropzone_jwt");
 
   const formData = new FormData();
   formData.append("file", fileInput);
   if (descInput) formData.append("description", descInput);
-
-  if (expiresInput)
-    formData.append("expires_at", new Date(expiresInput).toISOString());
 
   const response = await fetch("/api/v1/files", {
     method: "POST",
@@ -138,64 +159,6 @@ async function deleteFile(fileId) {
 
   if (response.ok) fetchFiles();
   else alert("Failed to delete file.");
-}
-
-// FUNC to edit file
-async function editFile(fileId) {
-  const newDesc = prompt(
-    "Enter new description (Leave blank to keep current):",
-  );
-  if (newDesc === null) return;
-
-  const newExpires = prompt(
-    "Enter new expiration date (Format: YYYY-MM-DD HH:MM). Leave blank to keep current, or type '0' to make indefinite:",
-  );
-  if (newExpires === null) return;
-
-  const payload = {};
-
-  if (newDesc.trim() !== "") {
-    payload.description = newDesc;
-  }
-  if (newExpires.trim() !== "") {
-    if (newExpires.trim() === "0") {
-      payload.expires_at = null;
-    } else {
-      try {
-        const localDate = new Date(newExpires);
-        if (isNaN(localDate.getTime())) throw new Error("Invalid date");
-        payload.expires_at = localDate.toISOString();
-      } catch (e) {
-        alert("Invalid date format. Please use YYYY-MM-DD HH:MM");
-        return;
-      }
-    }
-  }
-
-  if (Object.keys(payload).length === 0) {
-    return;
-  }
-
-  const token = localStorage.getItem("dropzone_jwt");
-  try {
-    const response = await fetch(`/api/v1/files/${fileId}`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (response.ok) {
-      fetchFiles();
-    } else {
-      const err = await response.json();
-      alert("Edit failed: " + JSON.stringify(err));
-    }
-  } catch (error) {
-    console.error("Network error during edit:", error);
-  }
 }
 
 // FUNC to copy link for download

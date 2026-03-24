@@ -9,9 +9,6 @@ services:
       - POSTGRES_PASSWORD=secret
       - POSTGRES_DB=selfShare_db
 
-  redis:
-    image: redis:7-alpine
-
   # Flask Web Server
   web:
     build: .
@@ -22,28 +19,6 @@ services:
       - CELERY_BROKER_URL
       - ADMIN_PASSWORD
       - JWT_SECRET
-    depends_on:
-      - db
-      - redis
-
-  #Celery Worker
-  celery-worker:
-    build: .
-    command: ["celery", "-A", "celery_app.celery", "worker", "--loglevel=info"]
-    environment:
-      - DATABASE_URL
-      - CELERY_BROKER_URL
-    depends_on:
-      - db
-      - redis
-
-  # Celery Beat
-  celery-beat:
-    build: .
-    command: ["celery", "-A", "celery_app.celery", "beat", "--loglevel=info"]
-    environment:
-      - DATABASE_URL
-      - CELERY_BROKER_URL
     depends_on:
       - db
       - redis
