@@ -1,5 +1,5 @@
 services:
-  # 1. Database
+  # Database
   db:
     image: postgres:15-alpine
     volumes:
@@ -8,49 +8,42 @@ services:
       - POSTGRES_USER=selfShare
       - POSTGRES_PASSWORD=secret
       - POSTGRES_DB=selfShare_db
-    ports:
-      - "5432:5432"
 
-  # 2. Message Broker for Celery
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
 
-  # 3. Flask Web Server (Gunicorn)
+  # Flask Web Server
   web:
-    build: . # Tells Docker to use the Dockerfile in this folder
+    build: .
     ports:
       - "5000:5000"
     environment:
-      - DATABASE_URL=postgresql://selfShare:secret@db:5432/selfShare_db
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - ADMIN_PASSWORD=my_secret_password
-      - JWT_SECRET=my_super_secret_key
+      - DATABASE_URL
+      - CELERY_BROKER_URL
+      - ADMIN_PASSWORD
+      - JWT_SECRET
     depends_on:
       - db
       - redis
 
-  # 4. Celery Worker (Executes the file deletion)
+  #Celery Worker
   celery-worker:
     build: .
-    # We override the Dockerfile CMD to run Celery instead of Gunicorn!
     command: ["celery", "-A", "celery_app.celery", "worker", "--loglevel=info"]
     environment:
-      - DATABASE_URL=postgresql://selfShare:secret@db:5432/selfShare_db
-      - CELERY_BROKER_URL=redis://redis:6379/0
+      - DATABASE_URL
+      - CELERY_BROKER_URL
     depends_on:
       - db
       - redis
 
-  # 5. Celery Beat (The Alarm Clock)
+  # Celery Beat
   celery-beat:
     build: .
-    # We override the Dockerfile CMD to run the Celery scheduler!
     command: ["celery", "-A", "celery_app.celery", "beat", "--loglevel=info"]
     environment:
-      - DATABASE_URL=postgresql://selfShare:secret@db:5432/selfShare_db
-      - CELERY_BROKER_URL=redis://redis:6379/0
+      - DATABASE_URL
+      - CELERY_BROKER_URL
     depends_on:
       - db
       - redis

@@ -200,7 +200,6 @@ async function editFile(fileId) {
 
 // FUNC to copy link for download
 async function copyLink(fileId) {
-  // Dynamically build the full URL based on where the app is running (localhost or a real domain)
   const link = `${window.location.origin}/api/v1/files/${fileId}`;
   try {
     await navigator.clipboard.writeText(link);

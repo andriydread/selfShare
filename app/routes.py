@@ -26,7 +26,6 @@ def require_jwt(f):
             return jsonify({"error": "Invalid Authorization header format"}), 401
 
         try:
-            # Fallback prevents 500 crashes if .env is missing
             secret = os.environ.get("JWT_SECRET")
             jwt.decode(token, secret, algorithms=["HS256"])
         except jwt.ExpiredSignatureError:
@@ -42,7 +41,12 @@ def require_jwt(f):
 @api_bp.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
-    if data.get("password") == os.environ.get("ADMIN_PASSWORD"):
+    admin_password = os.environ.get("ADMIN_PASSWORD")
+
+    if not admin_password:
+        return jsonify({"error": "Server misconfiguration"}), 500
+
+    if data.get("password") == admin_password:
         token = jwt.encode(
             {"user": "admin", "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
             os.environ.get("JWT_SECRET"),
@@ -72,7 +76,6 @@ def view_files():
 @api_bp.route("/files", methods=["POST"])
 @require_jwt
 def upload_file():
-    # Guard Clauses: Return early if invalid, prevents deep nesting
     if "file" not in request.files:
         return jsonify({"error": "No file provided"}), 400
 
@@ -84,17 +87,12 @@ def upload_file():
     save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], file_id)
     uploaded_file.save(save_path)
 
-    # Inside upload_file(), replace the old hours logic with this:
     expires_str = request.form.get("expires_at")
     expires = None
 
     if expires_str:
         try:
-            # Convert the string "2024-10-31T15:30:00.000Z" into a Python datetime
-            # .replace("Z", "+00:00") is a standard Python trick to parse JS UTC strings
             expires = datetime.fromisoformat(expires_str.replace("Z", "+00:00"))
-
-            # Prevent users from picking a date in the past!
             if expires < datetime.now(timezone.utc):
                 return jsonify({"error": "Expiration date must be in the future"}), 400
         except ValueError:
@@ -128,7 +126,6 @@ def download_file(file_id):
                 yield chunk
 
     response = Response(generate(), mimetype="application/octet-stream")
-    # Wrap filename in quotes in case it contains spaces
     response.headers["Content-Disposition"] = (
         f'attachment; filename="{file_record.original_filename}"'
     )
@@ -149,10 +146,9 @@ def edit_file(file_id):
     if "expires_at" in data:
         expires_str = data["expires_at"]
         if expires_str is None:
-            file_record.expires_at = None  # Make it indefinite
+            file_record.expires_at = None
         else:
             try:
-                # Convert the ISO string from JS into a timezone-aware Python datetime
                 expires = datetime.fromisoformat(expires_str.replace("Z", "+00:00"))
                 if expires < datetime.now(timezone.utc):
                     return jsonify(
