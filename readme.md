@@ -32,4 +32,6 @@ docker-compose up -d --build
 ### TODO:
 
 1. Improve UI
+  - Filesize
+  - Date of upload
 2. Multi-user functionality
