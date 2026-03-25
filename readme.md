@@ -5,7 +5,7 @@ Vanilla JS (SPA) for the frontend.
 
 Quick Start (Docker)
 
-You can spin up the entire application environment (Flask, Postgres, Redis, Celery Worker, Celery Beat) using Docker Compose.
+You can spin up the entire application environment using Docker Compose.
 
 ### 1. Clone & Configure
 
